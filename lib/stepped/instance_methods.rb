@@ -50,8 +50,7 @@ module Stepped
 
     def process(steps)
       steps.each do |name, defs|
-        args = args_for_step(name, defs)
-        @result = instance_exec(*args, &defs[:block])
+        execute_step(name, defs)
       rescue StandardError => e
         @result = handle_error(name, defs, e)
         break if stop_on_failure
@@ -70,6 +69,16 @@ module Stepped
 
     private
 
+    def execute_step(name, defs)
+      args = args_for_step(name, defs)
+      if args.is_a?(Array) && args.last.is_a?(Hash)
+        kwargs = args.pop
+        @result = instance_exec(*args, **kwargs, &defs[:block])
+      else
+        @result = instance_exec(*args, &defs[:block])
+      end
+    end
+
     def args_for_step(step_name, defs)
       args = step_result(defs[:from]) || @args_for_next_step
 
@@ -87,7 +96,7 @@ module Stepped
           value = args[index]
           type = :param
         end
-        value = extract_definition(type, value, def_name, options)
+        value = extract_definition(type, value, def_name, **options)
 
         define_singleton_method(def_name) { value }
       end
